@@ -48,11 +48,17 @@ See also the root `package.json` script: `npm run publish:lib`.
 
 ## Running unit tests
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+Tests use Vitest (via `@angular/build:unit-test`).
+
+From the workspace root:
 
 ```bash
-ng test
+ng test a-lib
+# or
+npm run test:lib
 ```
+
+See the main [README.md](../README.md) for watch mode and more details. The default is to run once and exit.
 
 ## Running end-to-end tests
 

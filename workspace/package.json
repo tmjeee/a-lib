@@ -6,10 +6,11 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
+    "test": "ng test a-lib",
     "build:lib": "ng build a-lib",
     "build:lib:watch": "ng build a-lib --watch --configuration development",
     "test:lib": "ng test a-lib",
+    "test:lib:watch": "ng test a-lib --watch",
     "pack:lib": "cd dist/a-lib && npm pack",
     "publish:lib": "npm publish ./dist/a-lib --access public"
   },

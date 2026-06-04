@@ -21,8 +21,11 @@ npm run build:lib
 # Watch mode for the library
 npm run build:lib:watch
 
-# Run library unit tests (vitest)
+# Run library unit tests (vitest) - stops after running by default
 npm run test:lib
+
+# Watch mode for tests (re-runs on changes)
+npm run test:lib:watch
 
 # Pack the built library tarball (for local testing)
 npm run pack:lib
@@ -45,10 +48,20 @@ Build artifacts go to `dist/a-lib`.
 
 ## Running unit tests
 
+By default, `ng test a-lib` (and `npm run test:lib`) runs the tests **once** and exits (thanks to `"watch": false` in angular.json).
+
 ```bash
 ng test a-lib
 # or
 npm run test:lib
+```
+
+For development (re-runs when files change):
+
+```bash
+ng test a-lib --watch
+# or
+npm run test:lib:watch
 ```
 
 ## Publishing
