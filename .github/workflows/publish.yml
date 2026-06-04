@@ -1,19 +1,14 @@
 name: Publish to npmjs
 
 on:
-  # Manually trigger this workflow from the GitHub Actions tab
   workflow_dispatch:
-    # You can add inputs here, e.g. to override version (advanced users can implement version bumping)
-    # For now, bump the version in projects/a-lib/package.json, commit, and trigger.
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    # Required permissions for publishing to GitHub Packages using GITHUB_TOKEN
     permissions:
       contents: read
-      packages: write
-      # id-token: write  # Uncomment if you want npm provenance attestations
+      id-token: write # required for npm trusted publishing (OIDC)
 
     steps:
       - name: Checkout
@@ -22,8 +17,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          registry-url: 'https://registry.npmjs.org/'
+          # Trusted publishing requires npm >= 11.5.1 (bundled with Node 24+, not Node 22).
+          node-version: '24.15'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify npm supports trusted publishing
+        run: |
+          node -v
+          npm -v
+          node -e "const v=require('node:child_process').execSync('npm -v',{encoding:'utf8'}).trim().split('.').map(Number); if(v[0]<11||(v[0]===11&&v[1]<5)||(v[0]===11&&v[1]===5&&v[2]<1)) { console.error('npm >= 11.5.1 required for trusted publishing'); process.exit(1); }"
 
       - name: Install dependencies
         run: |
@@ -38,19 +40,5 @@ jobs:
       - name: Publish to npm
         run: |
           cd workspace
-          # The built package in dist/a-lib has "publishConfig" pointing to GitHub registry
-          # and a scoped name (@grok-project/a-lib). The GITHUB_TOKEN provides auth.
           npm publish ./dist/a-lib --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # setup-node with registry-url + NODE_AUTH_TOKEN writes the auth for https://npm.pkg.github.com/
 
-# NOTE:
-# - The package name in projects/a-lib/package.json MUST start with a scope that matches
-#   the GitHub owner (user or organization) of the repository running this workflow.
-#   Example: if your repo is https://github.com/yourname/a-lib then use "@yourname/a-lib"
-# - If you want to publish to the public npm registry (npmjs.com) instead, remove or
-#   override the "publishConfig" in projects/a-lib/package.json and use a PAT for npm.
-# - After publishing, the package will be available at:
-#   https://github.com/grok-project?tab=packages  (adjust owner)
-# - To consume: npm install @grok-project/a-lib  (with .npmrc pointing to gh registry, or public if made public)
