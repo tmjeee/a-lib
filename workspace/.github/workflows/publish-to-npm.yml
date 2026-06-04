@@ -1,0 +1,64 @@
+name: Publish to npm
+
+on:
+  # Trigger manually from the GitHub Actions tab
+  workflow_dispatch:
+    # Optional: you can extend this later with inputs for version etc.
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # No special packages permission needed for npmjs (unlike GitHub Packages)
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          # Configure npm to publish to the public npm registry
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: |
+          cd workspace
+          npm ci
+
+      - name: Build the library
+        run: |
+          cd workspace
+          npm run build:lib
+
+      - name: Publish to npm
+        run: |
+          cd workspace
+          # --access public is required when publishing a new scoped package for the first time
+          npm publish ./dist/a-lib --access public
+        env:
+          # Use a secret called NPM_TOKEN (create at https://www.npmjs.com/settings/tokens)
+          # The token needs "Publish" permission for the package (or the scope).
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+# -----------------------------------------------------------------------------
+# Setup instructions:
+#
+# 1. Go to your GitHub repo → Settings → Secrets and variables → Actions
+# 2. Create a new secret named: NPM_TOKEN
+# 3. Generate the token at: https://www.npmjs.com/settings/~tokens (choose "Granular access" or "Classic")
+#    - For granular: give "Read and write" to Packages, or specifically to your package scope.
+# 4. (Recommended) Protect the secret by only allowing it on the publish workflow or using environments.
+#
+# After publishing:
+# - Your package will be available at: https://www.npmjs.com/package/@tmjeee/a-lib
+# - Consumers install with: npm install @tmjeee/a-lib
+#
+# Notes:
+# - The package name (currently "@tmjeee/a-lib") must be available / owned by you on npmjs.
+# - If you change the scope/name in projects/a-lib/package.json, also update the path mapping in tsconfig.json.
+# - For unscoped packages you can remove --access public.
+# - You can also run `npm run publish:lib` locally after `npm login`.
+# -----------------------------------------------------------------------------
