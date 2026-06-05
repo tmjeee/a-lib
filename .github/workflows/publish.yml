@@ -1,7 +1,16 @@
 name: Publish to npmjs
 
 on:
+  release: 
+    types: [published]
+
   workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Perform a dry run (without actually publishing to npm)'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   publish:
@@ -10,16 +19,20 @@ jobs:
       contents: read
       id-token: write # required for npm trusted publishing (OIDC)
 
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # not needed when doing OIDC
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           # Trusted publishing requires npm >= 11.5.1 (bundled with Node 24+, not Node 22).
           node-version: '24.15'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
 
       - name: Verify npm supports trusted publishing
         run: |
@@ -37,8 +50,80 @@ jobs:
           cd workspace
           npm run build:lib
 
+      # ==========================================
+      # Authentication diagnostics
+      # ==========================================
+      # This step shows exactly which authentication method will be used.
+      # Safe to run — it never prints the actual token value.
+
+      - name: Inspect npm authentication method
+        run: |
+          echo "=== npm Authentication Diagnostics ==="
+          echo ""
+
+          # 1. Classic token via NODE_AUTH_TOKEN
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "✓ NODE_AUTH_TOKEN is set (length: ${#NODE_AUTH_TOKEN} characters)"
+            echo "  → Classic token authentication will be used"
+            echo "  → setup-node has configured ~/.npmrc with the token"
+          else
+            echo "✗ NODE_AUTH_TOKEN is empty or not set"
+            echo "  → No classic token will be used"
+          fi
+          echo ""
+
+          # 2. GitHub OIDC / Trusted Publishing capability
+          if [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+            echo "✓ GitHub OIDC token request environment is available"
+            echo "  → This workflow can use npm Trusted Publishing (OIDC)"
+          else
+            echo "✗ GitHub OIDC environment variables are NOT present"
+            echo "  → OIDC / Trusted Publishing will not be possible in this run"
+          fi
+          echo ""
+
+          # 3. Show what is actually configured for the registry (mask secrets)
+          echo "=== Registry configuration (from setup-node) ==="
+          npm config get registry 2>/dev/null || echo "(no registry configured)"
+
+          echo ""
+          echo "=== ~/.npmrc contents (tokens masked) ==="
+          if [ -f "$HOME/.npmrc" ]; then
+            sed -E 's/(authToken=)[^[:space:]]+/\1***MASKED***/g; s/(:_auth=)[^[:space:]]+/\1***MASKED***/g' "$HOME/.npmrc" || true
+          else
+            echo "(no ~/.npmrc file found)"
+          fi
+          echo ""
+
+          # 4. Live auth check
+          echo "=== Live authentication check (npm whoami) ==="
+          if npm whoami 2>/dev/null; then
+            echo "✓ npm whoami succeeded — a valid authentication method is active"
+          else
+            echo "✗ npm whoami failed"
+            echo "   This means neither a valid NPM_TOKEN nor OIDC Trusted Publishing"
+            echo "   is currently working for this package."
+          fi
+          echo ""
+          echo "=== End of authentication diagnostics ==="
+
       - name: Publish to npm
         run: |
-          cd workspace
-          npm publish ./dist/a-lib --access public
+          DRY_RUN="${{ github.event.inputs.dry-run || 'false' }}"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Performing a dry run (npm publish --dry-run)"
+            cd workspace
+            npm publish ./dist/a-lib --access public --dry-run
+          else
+            echo "Performing a real publish to npm"
+            cd workspace
+            npm publish ./dist/a-lib --access public
+          fi
+      
+      - name: Publish success message
+        if: success()
+        run: | 
+          echo "Package published successfully!" 
+
 
