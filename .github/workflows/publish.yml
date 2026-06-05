@@ -33,6 +33,7 @@ jobs:
           node-version: '24.15'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
+          cache-dependency-path: 'workspace/package-lock.json'
 
       - name: Verify npm supports trusted publishing
         run: |
@@ -125,5 +126,4 @@ jobs:
         if: success()
         run: | 
           echo "Package published successfully!" 
-
 
