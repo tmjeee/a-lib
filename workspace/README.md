@@ -1,107 +1,119 @@
-# a-lib Workspace
 
-This is an Angular workspace containing the `a-lib` library (published as `@tmjeee/a-lib`).
+# a-lib
 
-It was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.0 with `--create-application=false` followed by `ng generate library a-lib`.
-
-The library is built using **ng-packagr** (via `@angular/build:ng-packagr`).
-
-## Library Project
-
-- Source: `projects/a-lib/`
-- Build output: `dist/a-lib/`
-- Public API: `projects/a-lib/src/public-api.ts`
-
-## Useful npm scripts
-
+## Installation
 ```bash
-# Build the library (uses ng-packagr)
-npm run build:lib
-
-# Watch mode for the library
-npm run build:lib:watch
-
-# Run library unit tests (vitest) - stops after running by default
-npm run test:lib
-
-# Watch mode for tests (re-runs on changes)
-npm run test:lib:watch
-
-# Pack the built library tarball (for local testing)
-npm run pack:lib
-
-# Publish to npm (https://www.npmjs.com)
-npm run publish:lib
+npm install @tmjeee/a-lib
 ```
 
-See [projects/a-lib/README.md](projects/a-lib/README.md) for more library-specific details.
+### loading-state (Angular)
+```typescript
+import {createLoadingState} from '@tmjeee/w-lib';
 
-## Building
+const loadingState = createLoadingState();
+loadingState.withLoading('assets', async ()=>{
+   // xhr calls, long running calls
+   // loadingState.is('asset');  will be true while this function is running else false
+});
 
-```bash
-ng build a-lib
-# or
-npm run build:lib
+const isLoading = loadingState.is('assets'); // signal<boolean> - true when loading else false
+
+loadingState.set('assets', false); // explicitly mark 'asset' as false 
 ```
 
-Build artifacts go to `dist/a-lib`.
+### TemplateSelection Directive (Angular)
 
-## Running unit tests
+A lightweight directive that marks a template (or element) with a name. This allows you to define multiple named templates and then query + render them manually at runtime.
 
-By default, `ng test a-lib` (and `npm run test:lib`) runs the tests **once** and exits (thanks to `"watch": false` in angular.json).
+It is especially useful when you want to let a component support multiple "slots" or conditional template rendering without hardcoding them.
 
-```bash
-ng test a-lib
-# or
-npm run test:lib
+#### Import
+
+```ts
+import { TemplateSelection } from '@tmjeee/w-lib';
 ```
 
-For development (re-runs when files change):
+#### Supported Syntax
 
-```bash
-ng test a-lib --watch
-# or
-npm run test:lib:watch
+You can use it in two ways:
+
+```html
+<!-- Recommended: on ng-template -->
+<ng-template templateSelection="header">Header content</ng-template>
+<ng-template templateSelection="footer">Footer content</ng-template>
+
+<!-- Also supported: structural directive syntax -->
+<div *templateSelection="'sidebar'">Sidebar content</div>
 ```
 
-## Publishing
+You can also bind the name dynamically:
 
-See [`.github/workflows/publish-to-npm.yml`](.github/workflows/publish-to-npm.yml) for the GitHub Action that can be triggered manually from the Actions tab ("Publish to npm" → "Run workflow").
-
-### Manual publish steps (local)
-
-1. Update the version in `projects/a-lib/package.json`
-2. Build the library:
-   ```bash
-   npm run build:lib
-   ```
-3. Publish:
-   ```bash
-   npm run publish:lib
-   ```
-
-   This will publish to the public npm registry (npmjs.com).
-
-## Code scaffolding (inside library)
-
-From workspace root:
-
-```bash
-ng generate component my-comp --project=a-lib
-# etc.
+```html
+<ng-template [templateSelection]="templateName">...</ng-template>
 ```
 
-For full list: `ng generate --help`
+#### Querying Templates
 
-## Additional Resources
+Use Angular's `viewChildren` or `contentChildren` to collect the templates:
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```ts
+@Component({...})
+export class MyComponent {
+  // Use viewChildren when templates are defined inside this component
+  templates = viewChildren(TemplateSelection);
 
-## Notes
+  // Use contentChildren when accepting templates via content projection
+  // projectedTemplates = contentChildren(TemplateSelection);
+}
+```
 
-- The current package name is `@tmjeee/a-lib`. 
-  - Change it in `projects/a-lib/package.json` if you want a different scope or name.
-  - If you change the name, also update the matching entry in `tsconfig.json` under `compilerOptions.paths`.
-- To publish a **scoped** package (`@scope/name`) to npmjs, `--access public` is required (the `publish:lib` script already includes it).
-- You need an `NPM_TOKEN` secret in your GitHub repo for the automated workflow (see the workflow file for setup instructions).
-- For local publishing: run `npm login` first, then `npm run publish:lib`.
+#### Full Example
+
+```ts
+import { Component, viewChildren, ViewContainerRef, inject, afterNextRender } from '@angular/core';
+import { TemplateSelection } from '@tmjeee/w-lib';
+
+@Component({
+  selector: 'my-component',
+  standalone: true,
+  imports: [TemplateSelection],
+  template: `
+    <ng-template templateSelection="header">
+      <h1>My Header</h1>
+    </ng-template>
+
+    <div *templateSelection="'content'">
+      Main content here
+    </div>
+  `
+})
+export class MyComponent {
+  private vcr = inject(ViewContainerRef);
+  templates = viewChildren(TemplateSelection);
+
+  constructor() {
+    afterNextRender(() => {
+      const headerTpl = this.templates()
+        .find(t => t.name() === 'header')
+        ?.templateRef;
+
+      if (headerTpl) {
+        this.vcr.createEmbeddedView(headerTpl);
+      }
+    });
+  }
+
+  getTemplate(name: string) {
+    return this.templates().find(t => t.name() === name)?.templateRef;
+  }
+}
+```
+
+You can then use the retrieved `TemplateRef` with `*ngTemplateOutlet` or `ViewContainerRef.createEmbeddedView()`.
+
+#### Notes
+
+- The directive is **standalone**.
+- Use `viewChildren(TemplateSelection)` for templates defined inside the component.
+- Use `contentChildren(TemplateSelection)` when the templates are provided by the parent via content projection.
+
