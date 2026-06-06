@@ -1,8 +1,11 @@
-import { Component, ElementRef, HostListener, InjectionToken, input, InputSignal, InputSignalWithTransform, model, signal, viewChild } from "@angular/core";
+import { afterNextRender, Component, effect, ElementRef, HostListener, inject, InjectionToken, input, InputSignal, InputSignalWithTransform, model, signal, untracked, viewChild } from "@angular/core";
 import { FormValueControl } from "@angular/forms/signals";
+import { Marked, marked } from "marked";
+import DOMPurify from "dompurify";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 
 
-export const MARKED_TOKEN = new InjectionToken<any>('MARKED_TOKEN');
+export const MARKED_TOKEN = new InjectionToken<Marked>('MARKED_TOKEN');
 
 export interface Options {
   toolbar: ToolbarOptions;
@@ -339,12 +342,14 @@ export const DefaultOptions: Options = {
   <textarea
     #editor
     (click)="cacheSelection(editor)"
-    (focusin)="toggleFocused()"
-    (focusout)="toggleFocused()"
     (input)="onInput(editor)"
     (keyup)="cacheSelection(editor)"
-    [disabled]="disabled()"
+
     [hidden]="showPreview()"
+
+    (focusin)="toggleFocused()"
+    (focusout)="toggleFocused()"
+    [disabled]="disabled()"
     [placeholder]="placeholder()"
     [rows]="rows()"
     [value]="value()"
@@ -353,6 +358,8 @@ export const DefaultOptions: Options = {
   `,
 })
 export class MardownEditor implements FormValueControl<string> {
+
+  domSanitizer = inject(DomSanitizer);
 
   value = model('');
   disabled = input<boolean>(false);
@@ -369,14 +376,40 @@ export class MardownEditor implements FormValueControl<string> {
   selEnd = signal(0);
   caretPos = signal(0);
 
-  preview = signal<string | null>(null);
+  preview = signal<SafeHtml | null>(null);
   showPreview = signal<boolean>(false);
 
   history = signal<{ caretPosBefore: number; caretPosAfter: number, content: string}[]>([]);
   historyIndex = signal<number>(0);
 
+  marked: Marked;
+  
+  constructor() {
 
+    this.marked = inject(MARKED_TOKEN) ?? marked.setOptions({
+      gfm: true,
+      breaks: true,
+    });
 
+    effect(()=>{
+      const v = this.value();
+      untracked(()=>{
+        this.historyIndex.update(i => --i);
+        const l = this.value().length;
+        this.selStart.set(l);
+        this.selEnd.set(l);
+        this.caretPos.set(l);
+        this.appendHistory(l, l);
+      });
+    });
+
+    afterNextRender(()=>{
+      window.addEventListener('insertSnippet', (e: any)=>{
+        const snippet: string = e.detail.snippet;
+        this.replaceSelection(snippet, e.detail.moveCaret);
+      });
+    });
+  }
 
 
   @HostListener('document:keydown', ['$event']) 
@@ -403,18 +436,108 @@ export class MardownEditor implements FormValueControl<string> {
     return {currentLineIndex, lineRanges: lineRanges};
   }
 
+  private replaceSelection(snippet: string, moveCaret: 'start' | 'end' = 'end') {
+    const before = this.value().slice(0, this.selStart());
+    const after = this.value().slice(this.selEnd());
+    this.value.set(before + snippet + after); 
 
-  togglePreview() {}
+    switch(moveCaret) {
+      case 'start': {
+        this.appendHistory(this.caretPos(), this.selStart());
+        this.caretPos.set(this.selStart());
+        break;
+      }
+      case 'end': {
+        this.appendHistory(this.caretPos(), this.selStart() + snippet.length);
+        this.caretPos.set(this.selStart() + snippet.length);
+        break;
+      }
+    }
 
-  cacheSelection(editorElement: HTMLTextAreaElement) {}
-
-  toggleFocused() {
-    const d = this.disabled();
+    setTimeout(()=>{
+      this.editorElementRef()?.nativeElement.focus();
+      this.editorElementRef()?.nativeElement.setSelectionRange(this.caretPos(), this.caretPos());
+      this.cacheSelection(this.editorElementRef()!.nativeElement)
+    });
   }
 
-  onInput(editorElementRef: HTMLTextAreaElement) {}
+  private isNoneSelected() {
+    return this.selStart() === this.selEnd();
+  }
 
-    /////////////// todo:
+  private setSelectionToCurrentLine() {
+    const lines = this.lines
+    if (lines.currentLineIndex > 0) {
+      this.selStart.set(lines.lineRanges[lines.currentLineIndex].from);
+      this.selEnd.set(lines.lineRanges[lines.currentLineIndex].to);
+    }
+  }
+
+  private async updatePreview() {
+    const rawHtml = await this.marked.parse(this.value());
+    const cleanHtml = DOMPurify.sanitize(rawHtml);
+    const safeHtml = this.domSanitizer.bypassSecurityTrustHtml(cleanHtml);
+    this.preview.set(safeHtml);
+  }
+
+  private appendHistory(caretPosBefore: number, caretPosAfter: number) {
+    if (this.value() != this.history()[this.historyIndex()]?.content) {
+      this.history.update(h => [
+        ...h.slice(0, this.historyIndex() + 1),
+        {caretPosBefore, caretPosAfter, content: this.value()},
+      ]);
+      this.historyIndex.update(i => ++i);
+    }
+
+  }
+
+
+  togglePreview() {
+    if (!this.showPreview()) {
+      this.updatePreview();
+    }
+    this.showPreview.update(s => !s);
+    if (!this.showPreview()) {
+      setTimeout(()=>{
+        this.editorElementRef()?.nativeElement.focus();
+      });
+    }
+  }
+
+  cacheSelection(editorElement: HTMLTextAreaElement) {
+    switch(editorElement.selectionDirection) {
+      case 'forward': {
+        this.caretPos.set(editorElement.selectionEnd ?? 0);
+        break;
+      }
+      case 'backward': {
+        this.caretPos.set(editorElement.selectionStart ?? 0);
+        break;
+      }
+      default: {
+        this.caretPos.set(editorElement.selectionEnd ?? 0);
+      }
+    }
+    this.selStart.set(editorElement.selectionStart ?? 0);
+    this.selEnd.set(editorElement.selectionEnd ?? 0);
+  }
+
+  toggleFocused() {
+    this.focused.update(f => !f);
+  }
+
+  onInput(editorElementRef: HTMLTextAreaElement) {
+    this.value.set(editorElementRef.value);
+    if(this.selStart() != this.selEnd()) {
+      this.appendHistory(this.caretPos(), this.selStart());
+      this.caretPos.set(this.selStart());
+    } else {
+      this.appendHistory(this.caretPos(), this.selEnd());
+      this.caretPos.set(this.selEnd());
+    }
+  }
+
+  /////////////// todo:
 
     isHeading(size: number){}
     toggleHeading(size: number){}
@@ -459,3 +582,4 @@ export class MardownEditor implements FormValueControl<string> {
 
 
 }
+
