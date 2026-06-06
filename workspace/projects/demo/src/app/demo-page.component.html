@@ -1,0 +1,14 @@
+<h1>Markdown editor demo</h1>
+
+
+<div class="editor-div">
+<markdown-editor
+  [(value)]="markdown">
+  <toolbar-item-heading *templateSelection="'left'" />
+</markdown-editor>
+</div>
+
+<pre>
+{{markdown() | json}}
+</pre>
+

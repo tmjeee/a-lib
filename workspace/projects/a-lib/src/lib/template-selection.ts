@@ -60,6 +60,15 @@ export class TemplateSelection {
   /**
    * The underlying TemplateRef that can be used with *ngTemplateOutlet or ViewContainerRef.
    */
-  readonly templateRef = inject(TemplateRef);
+  private readonly _templateRef = inject(TemplateRef, { optional: true });
+
+  get templateRef(): TemplateRef<unknown> {
+    if (!this._templateRef) {
+      throw new Error(
+        '[templateSelection] must be used on <ng-template> or via structural syntax (*templateSelection).',
+      );
+    }
+    return this._templateRef;
+  }
 }
 

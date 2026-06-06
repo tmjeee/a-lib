@@ -4,12 +4,14 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "@tmjeee/a-lib": ["./dist/a-lib"]
+      "@tmjeee/a-lib": ["./projects/a-lib/src/public-api.ts"]
     },
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "isolatedModules": true,
     "experimentalDecorators": true,

@@ -1,0 +1,112 @@
+
+.wrapper {
+  width: 100%;
+  .toolbar {}
+  .preview {}
+  textarea {
+    width: 100%;
+    min-height: 300px;
+  }
+}
+// Light theme variables
+$panel: #ffffff; // white panels
+$border: #d6dbe3; // soft gray borders
+$text: #1e293b; // dark slate text
+$muted: #64748b; // muted gray text
+$accent: #3b82f6; // blue accent
+
+:root {
+  --panel: #{$panel};
+  --border: #{$border};
+  --text: #{$text};
+  --muted: #{$muted};
+  --accent: #{$accent};
+}
+
+
+.wrapper {
+  border: 1px solid $border;
+  border-radius: 8px 8px 0px 0px;
+  display: flex;
+  flex-direction: column;
+
+  ::ng-deep .toolbar {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    gap: 8px;
+    border-bottom: 1px solid $border;
+    border-radius: 8px 8px 0px 0px;
+    background: #f1f5f9;
+    justify-content: space-between;
+
+    .left {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .right {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      background: transparent;
+      border: 1px solid $border;
+      color: $text;
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+      height: 32px;
+      width: 38px;
+
+      svg {
+        height: 18px;
+        width: 18px;
+      }
+
+      &.active {
+        background-color: rgba($accent, 0.2);
+      }
+
+      &:hover:not(:disabled) {
+        border-color: $accent;
+        background: rgba($accent, 0.05);
+      }
+
+      &:hover:disabled {
+        cursor: default;
+      }
+
+      &:disabled {
+        background-color: rgba(#e1dfdf, .6);
+      }
+    }
+  }
+
+  .preview {
+    padding: 0px 16px;
+    min-height: 64px;
+  }
+
+  textarea {
+    flex: 1;
+    background: transparent;
+    color: $text;
+    padding: 12px;
+    border: 1px solid $text;
+    outline: none;
+    resize: none;
+    font: 14px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+    tab-size: 2;
+
+    &::placeholder {
+      color: $muted;
+    }
+  }
+}

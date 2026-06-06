@@ -1,12 +1,99 @@
 
 # a-lib
 
-## Installation
+# Installation
 ```bash
 npm install @tmjeee/a-lib
 ```
 
-### loading-state (Angular)
+# Feat #1: Markdown Editor (Angular)
+### install
+In `app.config.ts` add a provider
+```typescript
+  import { MARKED_TOKEN } from '@tmjeee/a-lib';
+  import { marked } from 'marked';
+
+  providers: [
+    ...
+    {provide: MARKED_TOKEN, useValue: marked.setOptions({
+      gfm: true,
+      breaks: true,
+    })}
+    ...
+  ]
+```
+
+component
+```typescript
+  @Component({
+    ...
+  })
+  export class MyComponent {
+
+    markdownValue = signal('my markdown');
+
+  }
+```
+
+template
+```html
+  <markdown-editor [(value)]="markdownValue">
+    <!-- add toolbar item as needed (left side of toolbar) -->
+    <toolbar-item-heading *templateSelection="left" /> <!-- add to the left side of toolbar -->
+    <toolbar-item-bold *templateSelection="left" />
+    <toolbar-item-italic *templateSelection="left" />
+    <toolbar-item-code-block *templateSelection="left" />
+    <toolbar-item-quote-block *templateSelection="left" />
+    <toolbar-item-horizontal-rule *templateSelection="left" />
+    <toolbar-item-hyperlink *templateSelection="left" />
+    <toolbar-item-image *templateSelection="left" />
+    <toolbar-item-inline-code *templateSelection="left" />
+    <toolbar-item-ordered-list *templateSelection="left" />
+    <toolbar-item-unordered-list *templateSelection="left" />
+
+    <!-- add toolbar item (right side of toolbar) -->
+    <toolbar-item-download *templateSelection="right" />
+    <toolbar-item-undo *templateSelection="right" />
+    <toolbar-item-redo *templateSelection="right" />
+  </markdown-editor>
+```
+
+### Add custom component to toolbar 
+component 
+```typescript
+  import {EditorService} from '@tmjeee/a-lib';
+
+  @Component({
+    ...
+  })
+  export class MyToolbarItem {
+    editorService = inject(EditorService);
+
+    onClick($event: Event) {
+      // do whatever you need, eg. open up dialog etc.
+
+      // use editorService to manipulate markdown
+      this.editorService.selection;
+      this.editorService.currentLine;
+      this.editorService.selectionOrCurrentLine;
+      this.lines;
+      this.replaceSelection(snippet, 'start');
+      this.isNoneSelected; // retruns true if there is a selection else false
+      this.setSelectionToCurrentLine(); 
+      ... etc
+    }
+  }
+```
+
+```html
+ <button (click)="onClick($event)">MyToolbarItem</button>
+```
+
+
+
+
+# Feat #2: loading-state (Angular)
+
 ```typescript
 import {createLoadingState} from '@tmjeee/w-lib';
 
@@ -21,7 +108,7 @@ const isLoading = loadingState.is('assets'); // signal<boolean> - true when load
 loadingState.set('assets', false); // explicitly mark 'asset' as false 
 ```
 
-### TemplateSelection Directive (Angular)
+# Feat #3: TemplateSelection Directive (Angular)
 
 A lightweight directive that marks a template (or element) with a name. This allows you to define multiple named templates and then query + render them manually at runtime.
 

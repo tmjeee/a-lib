@@ -1,0 +1,10 @@
+
+@for (headline of headings; track $index) {
+  <button
+    [title]="'Heading ' + headline"
+    [class.active]="editorService.focused() && isHeading(headline)"
+    (click)="toggleHeading(headline)"
+  >
+    H{{ headline }}
+  </button>
+}
