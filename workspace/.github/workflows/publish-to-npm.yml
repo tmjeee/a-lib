@@ -43,22 +43,3 @@ jobs:
           # The token needs "Publish" permission for the package (or the scope).
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-# -----------------------------------------------------------------------------
-# Setup instructions:
-#
-# 1. Go to your GitHub repo → Settings → Secrets and variables → Actions
-# 2. Create a new secret named: NPM_TOKEN
-# 3. Generate the token at: https://www.npmjs.com/settings/~tokens (choose "Granular access" or "Classic")
-#    - For granular: give "Read and write" to Packages, or specifically to your package scope.
-# 4. (Recommended) Protect the secret by only allowing it on the publish workflow or using environments.
-#
-# After publishing:
-# - Your package will be available at: https://www.npmjs.com/package/@tmjeee/a-lib
-# - Consumers install with: npm install @tmjeee/a-lib
-#
-# Notes:
-# - The package name (currently "@tmjeee/a-lib") must be available / owned by you on npmjs.
-# - If you change the scope/name in projects/a-lib/package.json, also update the path mapping in tsconfig.json.
-# - For unscoped packages you can remove --access public.
-# - You can also run `npm run publish:lib` locally after `npm login`.
-# -----------------------------------------------------------------------------
